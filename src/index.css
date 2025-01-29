@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    font-family: Inter, sans-serif;
+    font-feature-settings: 'liga' 1, 'calt' 1;
+    
+    --color-1: 0 100% 63%;
+    --color-2: 270 100% 63%;
+    --color-3: 210 100% 63%;
+    --color-4: 195 100% 63%;
+    --color-5: 90 100% 63%;
+  }
+  
+  @supports (font-variation-settings: normal) {
+    :root { 
+      font-family: InterVariable, sans-serif;
+    }
+  }
+
+  :root {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+
+    --card: 222 18% 11%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 222 18% 11%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 211 100% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 222 18% 11%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 223 18% 11%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 223 18% 11%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 223 18% 11%;
+    --input: 223 18% 11%;
+    --ring: 0 0% 100%;
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
