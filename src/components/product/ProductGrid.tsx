@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice } from "@/utils/format";
 
 interface Product {
   id: string;

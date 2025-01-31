@@ -1,56 +1,63 @@
-import { Search, ShoppingBag, Truck } from "lucide-react";
+import { Flower, Heart, Filter, Truck } from 'lucide-react';
+
+const FEATURES = [
+  {
+    icon: Flower,
+    title: "Local Excellence",
+    description: "Support the finest florists in your community creating stunning arrangements"
+  },
+  {
+    icon: Heart,
+    title: "Seamless Selection",
+    description: "Browse and filter arrangements from our florists, and complete your order in one place"
+  },
+  {
+    icon: Filter,
+    title: "Secure Checkout",
+    description: "Shop with confidence using our safe and effortless payment system"
+  },
+  {
+    icon: Truck,
+    title: "Doorstep Delivery",
+    description: "Your beautiful arrangement delivered right to your door, same day available"
+  }
+];
 
 export function HowItWorks() {
-  const steps = [
-    {
-      icon: <Search className="h-14 w-14 text-pink-500" />,
-      title: "Browse & Choose",
-      description: "Find the perfect flowers from local florists in your area",
-    },
-    {
-      icon: <ShoppingBag className="h-14 w-14 text-pink-500" />,
-      title: "Place Your Order",
-      description: "Customize your arrangement and select delivery options",
-    },
-    {
-      icon: <Truck className="h-14 w-14 text-pink-500" />,
-      title: "Fast Delivery",
-      description: "Get fresh flowers delivered right to your door",
-    },
-  ];
-
   return (
-    <section className="py-24 bg-gradient-to-b from-white to-pink-50/50">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
-            Simple & Easy Process
-          </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Get beautiful flowers delivered to your door in just three simple steps
-          </p>
-        </div>
+    <section className="hidden md:block py-24 bg-[#E8E3DD]">
+      <div className="container mx-auto px-4 max-w-[1400px]">
+        {/* Typography */}
+        <h2 className="text-7xl font-bold text-center mb-4 tracking-tight text-[#4A4F41]">
+          Fresh Flowers, Delivered with Care
+        </h2>
+        <p className="text-xl text-[#4A4F41]/70 text-center max-w-[800px] mx-auto mb-16">
+          Discover our handpicked selection of exceptional local florists, all in one convenient place
+        </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
-          {steps.map((step, index) => (
-            <div
+        {/* Feature Grid */}
+        <div className="grid grid-cols-4 gap-8">
+          {FEATURES.map((feature, index) => (
+            <div 
               key={index}
-              className="group relative flex flex-col items-center text-center p-8 rounded-2xl bg-white shadow-sm hover:shadow-lg transition-all duration-300"
+              className="bg-[#EED2D8] rounded-2xl p-8 flex flex-col justify-between min-h-[360px]"
             >
-              <div className="mb-6 transform group-hover:-translate-y-1 transition-transform duration-300">
-                {step.icon}
+              {/* Top Content */}
+              <div>
+                <h3 className="text-xl font-semibold mb-3 text-[#4A4F41]">
+                  {feature.title}
+                </h3>
+                <p className="text-[#4A4F41]/80">
+                  {feature.description}
+                </p>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                {step.title}
-              </h3>
-              <p className="text-gray-600 text-lg">
-                {step.description}
-              </p>
-              {index < steps.length - 1 && (
-                <div className="hidden md:block absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2">
-                  <div className="w-8 h-0.5 bg-pink-200" />
-                </div>
-              )}
+
+              {/* Bottom Card */}
+              <div className="bg-white rounded-xl p-6 mt-4">
+                <div className="h-1.5 bg-[#4A4F41]/10 rounded-full w-3/4 mb-2" />
+                <div className="h-1.5 bg-[#4A4F41]/10 rounded-full w-1/2" />
+                <feature.icon className="w-6 h-6 text-[#4A4F41] mt-4" />
+              </div>
             </div>
           ))}
         </div>

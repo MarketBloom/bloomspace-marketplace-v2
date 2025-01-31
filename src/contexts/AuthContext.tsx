@@ -1,19 +1,32 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '../integrations/supabase/client';
 import type { AuthContextType, AuthState, AuthUser, UserRole, UserMetadata } from '@/types/auth';
 import { AuthError } from '@supabase/supabase-js';
+
+interface UserData extends User {
+  role: 'customer' | 'florist' | 'admin';
+  floristId?: string;
+}
+
+interface AuthContextType {
+  user: UserData | null;
+  session: Session | null;
+  loading: boolean;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, role: 'customer' | 'florist') => Promise<void>;
+  signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const REFRESH_MARGIN = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    session: null,
-    loading: true,
-    error: null,
-  });
+  const [user, setUser] = useState<UserData | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const refreshSession = async () => {
     try {
@@ -21,215 +34,123 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       
       if (session) {
-        setState(prev => ({
-          ...prev,
-          session: {
-            access_token: session.access_token,
-            refresh_token: session.refresh_token,
-            expires_at: session.expires_at,
-          },
-          user: session.user as AuthUser,
-        }));
+        setSession(session);
+        if (session.user) {
+          await fetchUserData(session.user.id);
+        }
       }
     } catch (error) {
       console.error('Error refreshing session:', error);
-      setState(prev => ({ ...prev, error: error as Error }));
+      setSession(null);
+      setUser(null);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        setState(prev => ({ ...prev, error, loading: false }));
-        return;
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        fetchUserData(session.user.id);
       }
-
-      if (session) {
-        setState({
-          user: session.user as AuthUser,
-          session: {
-            access_token: session.access_token,
-            refresh_token: session.refresh_token,
-            expires_at: session.expires_at,
-          },
-          loading: false,
-          error: null,
-        });
-      } else {
-        setState(prev => ({ ...prev, loading: false }));
-      }
+      setLoading(false);
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (session) {
-          setState({
-            user: session.user as AuthUser,
-            session: {
-              access_token: session.access_token,
-              refresh_token: session.refresh_token,
-              expires_at: session.expires_at,
-            },
-            loading: false,
-            error: null,
-          });
-        } else {
-          setState({
-            user: null,
-            session: null,
-            loading: false,
-            error: null,
-          });
-        }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session);
+      if (session?.user) {
+        await fetchUserData(session.user.id);
+      } else {
+        setUser(null);
       }
-    );
-
-    // Set up session refresh
-    const checkSessionExpiry = () => {
-      const { session } = state;
-      if (session?.expires_at) {
-        const expiresAt = session.expires_at * 1000; // Convert to milliseconds
-        const shouldRefresh = expiresAt - Date.now() <= REFRESH_MARGIN;
-        
-        if (shouldRefresh) {
-          refreshSession();
-        }
-      }
-    };
-
-    const refreshInterval = setInterval(checkSessionExpiry, 60000); // Check every minute
+      setLoading(false);
+    });
 
     return () => {
       subscription.unsubscribe();
-      clearInterval(refreshInterval);
     };
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  async function fetchUserData(userId: string) {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // First check if user is an admin
+      const { data: adminData } = await supabase
+        .from('admins')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
 
-      if (error) throw error;
-
-      if (data.user) {
-        // Get user profile from the database
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('role, full_name, phone')
-          .eq('id', data.user.id)
-          .single();
-
-        if (profileError) throw profileError;
-
-        if (profileData) {
-          // Update user metadata
-          await supabase.auth.updateUser({
-            data: profileData
-          });
-        }
+      if (adminData) {
+        setUser({ ...session!.user, role: 'admin' });
+        return;
       }
 
-      return { data, error: null };
+      // Check if user is a florist
+      const { data: floristData } = await supabase
+        .from('florists')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (floristData) {
+        setUser({ ...session!.user, role: 'florist', floristId: floristData.id });
+        return;
+      }
+
+      // Default to customer role
+      setUser({ ...session!.user, role: 'customer' });
     } catch (error) {
-      console.error('Error signing in:', error);
-      return { data: null, error: error as AuthError };
+      console.error('Error fetching user data:', error);
+      setUser(null);
     }
+  }
+
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
   };
 
-  const signUp = async (email: string, password: string, metadata: Partial<UserMetadata>) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: metadata,
-        },
-      });
+  const signUp = async (email: string, password: string, role: 'customer' | 'florist') => {
+    const { error: signUpError, data } = await supabase.auth.signUp({ email, password });
+    if (signUpError) throw signUpError;
 
-      if (error) throw error;
-
-      if (data.user) {
-        // Create user profile
+    if (data.user) {
+      // Create role-specific profile
+      if (role === 'florist') {
         const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            role: metadata.role,
-            full_name: metadata.full_name,
-            phone: metadata.phone,
-          });
-
+          .from('florists')
+          .insert([{ user_id: data.user.id, status: 'pending' }]);
+        if (profileError) throw profileError;
+      } else {
+        const { error: profileError } = await supabase
+          .from('customers')
+          .insert([{ user_id: data.user.id }]);
         if (profileError) throw profileError;
       }
-
-      return { data, error: null };
-    } catch (error) {
-      console.error('Error signing up:', error);
-      return { data: null, error: error as AuthError };
     }
   };
 
   const signOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      setState({
-        user: null,
-        session: null,
-        loading: false,
-        error: null,
-      });
-    } catch (error) {
-      console.error('Error signing out:', error);
-      setState(prev => ({ ...prev, error: error as Error }));
-    }
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   };
 
-  const updateProfile = async (updates: Partial<UserMetadata>) => {
-    try {
-      if (!state.user) throw new Error('No user logged in');
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', state.user.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Update user metadata
-      await supabase.auth.updateUser({
-        data: updates
-      });
-
-      return { data, error: null };
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      return { data: null, error: error as Error };
+  const refreshUser = async () => {
+    if (session?.user) {
+      await fetchUserData(session.user.id);
     }
-  };
-
-  const isAuthorized = (requiredRoles?: UserRole[]) => {
-    if (!state.user) return false;
-    if (!requiredRoles || requiredRoles.length === 0) return true;
-    
-    const userRole = state.user.user_metadata.role;
-    return requiredRoles.includes(userRole);
   };
 
   const value = {
-    ...state,
+    user,
+    session,
+    loading,
     signIn,
     signUp,
     signOut,
-    updateProfile,
-    isAuthorized,
-    refreshSession,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Order } from '@/types/order';
 import { getOrderStatusConfig } from '@/config/orderStatus';
-import { formatPrice, formatDate } from '@/lib/utils';
+import { formatPrice, formatDate } from '@/utils/format';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {

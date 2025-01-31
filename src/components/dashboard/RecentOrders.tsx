@@ -1,4 +1,4 @@
-import { formatPrice, formatDate } from "@/lib/utils";
+import { formatPrice, formatDate } from "@/utils/format";
 import { Package, Truck, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 

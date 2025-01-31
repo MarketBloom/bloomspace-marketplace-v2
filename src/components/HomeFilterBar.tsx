@@ -1,165 +1,161 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Slider } from "../components/ui/slider";
-import { Input } from "../components/ui/input";
-import { Button } from "../components/ui/button";
-import { AddressAutocomplete } from "./address/AddressAutocomplete";
-import { MapPinIcon, TruckIcon, ShoppingBagIcon } from "@heroicons/react/24/outline";
-import { Loader2Icon } from "lucide-react";
-import { cn } from "../lib/utils";
-
-// Keyframes for shine effect
-const shineAnimation = `
-  @keyframes shine {
-    0% { background-position: 0% 0%; }
-    50% { background-position: 100% 100%; }
-    100% { background-position: 0% 0%; }
-  }
-`;
+import { useRouter } from "next/router";
+import { LocationSearchInput } from "@/components/location/LocationSearchInput";
+import { DatePicker } from "@/components/DatePicker";
+import { Slider } from "@/components/ui/Slider";
+import { Button } from "@/components/ui/Button";
+import { formatPrice } from "@/lib/utils/format";
 
 export function HomeFilterBar() {
-  const navigate = useNavigate();
-  const [budget, setBudget] = useState(100);
+  const router = useRouter();
   const [location, setLocation] = useState("");
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState<Date | null>(null);
+  const [budget, setBudget] = useState([0, 500]);
   const [deliveryType, setDeliveryType] = useState<"delivery" | "pickup">("delivery");
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleSearch = () => {
-    setIsLoading(true);
-    const params = new URLSearchParams();
-    if (location) params.set("location", location);
-    if (date) params.set("date", date);
-    if (budget) params.set("budget", budget.toString());
-    params.set("type", deliveryType);
-    
-    // Simulate loading state
-    setTimeout(() => {
-      setIsLoading(false);
-      navigate(`/search?${params.toString()}`);
-    }, 500);
+    router.push({
+      pathname: "/search",
+      query: {
+        location,
+        date: date?.toISOString(),
+        minPrice: budget[0],
+        maxPrice: budget[1],
+        deliveryType,
+      },
+    });
   };
 
   return (
-    <>
-      <style>{shineAnimation}</style>
-      
-      <div className="relative w-full max-w-4xl">
-        {/* Main container with glassmorphism */}
-        <div 
-          className="relative w-full bg-[#eed2d8]/80 backdrop-blur-sm rounded-lg px-3 py-4 md:p-5 z-10 shadow-[0_2px_4px_rgba(0,0,0,0.08),_0_2px_12px_rgba(0,0,0,0.06)]"
-        >
-          {/* Shine border effect */}
-          <div className="absolute inset-0 rounded-lg overflow-hidden">
-            <div 
-              className="absolute inset-0 bg-gradient-to-r from-[#D73459] via-[#eed2d8] to-[#D73459] animate-[shine_14s_linear_infinite] bg-[length:200%_200%]"
+    <div className="w-full max-w-3xl mx-auto bg-[#EED2D8] rounded-xl border border-[#4A4F41]/10 p-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="col-span-1">
+          <label className="block text-sm font-medium text-[#4A4F41] mb-2">
+            Where
+          </label>
+          <Location value={location} onChange={setLocation} />
+        </div>
+
+        <div className="col-span-1">
+          <label className="block text-sm font-medium text-[#4A4F41] mb-2">
+            When
+          </label>
+          <Date value={date} onChange={setDate} />
+        </div>
+
+        <div className="col-span-1">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium text-[#4A4F41]">
+              Budget
+            </label>
+            <BudgetDisplay value={budget} />
+          </div>
+          <Budget value={budget} onChange={setBudget} />
+        </div>
+
+        <div className="col-span-1">
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <DeliveryButton 
+              active={deliveryType === "delivery"} 
+              onClick={() => setDeliveryType("delivery")} 
+            />
+            <PickupButton 
+              active={deliveryType === "pickup"} 
+              onClick={() => setDeliveryType("pickup")} 
             />
           </div>
-
-          {/* Content grid */}
-          <div className="relative z-20 grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Location */}
-            <div className="relative">
-              <label className="block text-sm font-medium mb-1.5 text-[#1D1D1F]">
-                Location
-              </label>
-              <div className="relative">
-                <AddressAutocomplete
-                  value={location}
-                  onChange={setLocation}
-                  placeholder="Enter suburb or postcode..."
-                  className="pl-9 h-11 bg-white/90"
-                />
-                {isLoading ? (
-                  <Loader2Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
-                ) : (
-                  <MapPinIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                )}
-              </div>
-            </div>
-
-            {/* Date */}
-            <div>
-              <label className="block text-sm font-medium mb-1.5 text-[#1D1D1F]">
-                Delivery/Pickup Date
-              </label>
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                min={new Date().toISOString().split("T")[0]}
-                className="h-11 bg-white/90"
-              />
-            </div>
-
-            {/* Budget */}
-            <div>
-              <label className="block text-sm font-medium mb-1.5 text-[#1D1D1F]">
-                Budget
-              </label>
-              <div className="px-3">
-                <Slider
-                  value={[budget]}
-                  onValueChange={([value]) => setBudget(value)}
-                  min={50}
-                  max={500}
-                  step={10}
-                  className="mt-3"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Buttons */}
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            <Button
-              type="button"
-              disabled={isLoading}
-              onClick={() => {
-                setDeliveryType("delivery");
-                handleSearch();
-              }}
-              className={cn(
-                "relative h-11 text-base font-medium",
-                deliveryType === "delivery"
-                  ? "bg-[#D73459] text-white hover:bg-[#D73459]/90"
-                  : "bg-white text-[#1D1D1F] hover:bg-[#1D1D1F]/5",
-                "disabled:opacity-50"
-              )}
-            >
-              {isLoading ? (
-                <Loader2Icon className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <TruckIcon className="h-4 w-4 mr-2" />
-              )}
-              Search Delivery
-            </Button>
-
-            <Button
-              type="button"
-              disabled={isLoading}
-              onClick={() => {
-                setDeliveryType("pickup");
-                handleSearch();
-              }}
-              className={cn(
-                "relative h-11 text-base font-medium",
-                deliveryType === "pickup"
-                  ? "bg-[#D73459] text-white hover:bg-[#D73459]/90"
-                  : "bg-white text-[#1D1D1F] hover:bg-[#1D1D1F]/5",
-                "disabled:opacity-50"
-              )}
-            >
-              {isLoading ? (
-                <Loader2Icon className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <ShoppingBagIcon className="h-4 w-4 mr-2" />
-              )}
-              Search Pickup
-            </Button>
-          </div>
+          <SearchButton onClick={handleSearch} />
         </div>
       </div>
-    </>
+    </div>
   );
-} 
+}
+
+// Individual components for mobile flexibility
+HomeFilterBar.Location = function Location({ className = "", value, onChange }: any) {
+  return (
+    <LocationSearchInput
+      value={value}
+      onChange={onChange}
+      className={`bg-white/80 backdrop-blur-sm border border-[#4A4F41]/10 h-12 rounded-lg px-4 ${className}`}
+      placeholder="Enter your location"
+    />
+  );
+};
+
+HomeFilterBar.Date = function Date({ className = "", value, onChange }: any) {
+  return (
+    <DatePicker
+      value={value}
+      onChange={onChange}
+      className={`bg-white/80 backdrop-blur-sm border border-[#4A4F41]/10 h-12 rounded-lg px-4 ${className}`}
+      placeholder="Select date"
+    />
+  );
+};
+
+HomeFilterBar.Budget = function Budget({ className = "", value, onChange }: any) {
+  return (
+    <Slider
+      value={value}
+      onChange={onChange}
+      min={0}
+      max={500}
+      step={10}
+      className={className}
+    />
+  );
+};
+
+HomeFilterBar.BudgetDisplay = function BudgetDisplay({ value = [0, 500] }: any) {
+  const formattedMin = formatPrice(value[0]);
+  const formattedMax = value[1] >= 500 ? "$500+" : formatPrice(value[1]);
+  return (
+    <span className="text-sm text-[#4A4F41]/70">
+      {formattedMin} - {formattedMax}
+    </span>
+  );
+};
+
+HomeFilterBar.DeliveryButton = function DeliveryButton({ 
+  active, 
+  onClick,
+  className = "",
+  inactiveClassName = ""
+}: any) {
+  return (
+    <Button
+      onClick={onClick}
+      className={active ? className : inactiveClassName}
+    >
+      Delivery
+    </Button>
+  );
+};
+
+HomeFilterBar.PickupButton = function PickupButton({ 
+  active, 
+  onClick,
+  className = "",
+  inactiveClassName = ""
+}: any) {
+  return (
+    <Button
+      onClick={onClick}
+      className={active ? className : inactiveClassName}
+    >
+      Pickup
+    </Button>
+  );
+};
+
+HomeFilterBar.SearchButton = function SearchButton({ onClick, className = "" }: any) {
+  return (
+    <Button
+      onClick={onClick}
+      className={`w-full h-12 bg-[#4A4F41] text-[#E8E3DD] rounded-lg font-medium ${className}`}
+    >
+      Search
+    </Button>
+  );
+}; 

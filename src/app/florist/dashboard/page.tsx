@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import { Card } from '@/components/ui/card';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice } from '@/utils/format';
 import { OrderStatus } from '@/types/order';
 
 export const metadata: Metadata = {

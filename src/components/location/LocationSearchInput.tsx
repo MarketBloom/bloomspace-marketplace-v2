@@ -1,62 +1,71 @@
-import React from 'react';
-import { Input } from '../ui/input';
-import { useGooglePlaces } from '../../hooks/useGooglePlaces';
-import { Loader2 } from 'lucide-react';
-import type { AddressWithCoordinates } from '../../types/address';
+import { useState, useEffect, useRef } from "react";
+import { MapPinIcon } from "@heroicons/react/24/outline";
+import { useLoadScript } from "@react-google-maps/api";
+import { Input } from "@/components/ui/Input";
+
+const libraries: ("places")[] = ["places"];
 
 interface LocationSearchInputProps {
-  onPlaceSelected: (address: AddressWithCoordinates) => void;
-  placeholder?: string;
-  defaultValue?: string;
+  value: string;
+  onChange: (value: string) => void;
   className?: string;
+  placeholder?: string;
 }
 
-export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
-  onPlaceSelected,
-  placeholder = 'Enter a location',
-  defaultValue = '',
-  className = '',
-}) => {
-  const {
-    inputValue,
-    setInputValue,
-    isLoading,
-    suggestions,
-    handleSuggestionSelect
-  } = useGooglePlaces({
-    initialValue: defaultValue,
-    onAddressSelect: onPlaceSelected
+export function LocationSearchInput({
+  value,
+  onChange,
+  className = "",
+  placeholder = "Enter your location"
+}: LocationSearchInputProps) {
+  const { isLoaded } = useLoadScript({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+    libraries,
   });
+
+  const [searchValue, setSearchValue] = useState(value);
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isLoaded || !inputRef.current) return;
+
+    const options = {
+      componentRestrictions: { country: "au" },
+      types: ["(regions)"],
+    };
+
+    autocompleteRef.current = new google.maps.places.Autocomplete(
+      inputRef.current,
+      options
+    );
+
+    autocompleteRef.current.addListener("place_changed", () => {
+      const place = autocompleteRef.current?.getPlace();
+      if (place?.formatted_address) {
+        setSearchValue(place.formatted_address);
+        onChange(place.formatted_address);
+      }
+    });
+
+    return () => {
+      if (autocompleteRef.current) {
+        google.maps.event.clearInstanceListeners(autocompleteRef.current);
+      }
+    };
+  }, [isLoaded, onChange]);
 
   return (
     <div className="relative">
       <Input
+        ref={inputRef}
         type="text"
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
+        value={searchValue}
+        onChange={(e) => setSearchValue(e.target.value)}
         placeholder={placeholder}
-        className={className}
+        className={`pl-9 ${className}`}
       />
-      
-      {isLoading && (
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-          <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-        </div>
-      )}
-      
-      {suggestions.length > 0 && (
-        <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-60 overflow-auto">
-          {suggestions.map((suggestion) => (
-            <li
-              key={suggestion.place_id}
-              className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-              onClick={() => handleSuggestionSelect(suggestion)}
-            >
-              {suggestion.description}
-            </li>
-          ))}
-        </ul>
-      )}
+      <MapPinIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#4A4F41]/60" />
     </div>
   );
-};
+}

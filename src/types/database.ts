@@ -4,6 +4,7 @@ import { ReviewsTable } from './review';
 import { FloristApplicationsTable } from './application';
 import { FloristProfilesTable } from './florist';
 import { ProfilesTable } from './profile';
+import { NotificationType } from '../lib/notifications';
 
 export type Json =
   | string
@@ -301,38 +302,38 @@ export interface Database {
       }
       products: {
         Row: {
-          id: string;
-          florist_id: string | null;
-          title: string;
-          description: string | null;
-          price: number;
-          images: string[] | null;
-          active: boolean | null;
-          created_at: string;
-          updated_at: string;
-        };
+          id: string
+          title: string
+          description: string
+          price: number
+          images: string[]
+          featured: boolean
+          florist_id: string
+          created_at: string
+          updated_at: string
+        }
         Insert: {
-          id?: string;
-          florist_id?: string | null;
-          title: string;
-          description?: string | null;
-          price: number;
-          images?: string[] | null;
-          active?: boolean | null;
-          created_at?: string;
-          updated_at?: string;
-        };
+          id?: string
+          title: string
+          description: string
+          price: number
+          images: string[]
+          featured?: boolean
+          florist_id: string
+          created_at?: string
+          updated_at?: string
+        }
         Update: {
-          id?: string;
-          florist_id?: string | null;
-          title?: string;
-          description?: string | null;
-          price?: number;
-          images?: string[] | null;
-          active?: boolean | null;
-          created_at?: string;
-          updated_at?: string;
-        };
+          id?: string
+          title?: string
+          description?: string
+          price?: number
+          images?: string[]
+          featured?: boolean
+          florist_id?: string
+          created_at?: string
+          updated_at?: string
+        }
       }
       profiles: {
         Row: {
@@ -403,6 +404,114 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+      }
+      florists: {
+        Row: {
+          id: string
+          store_name: string
+          description: string
+          address: string
+          delivery_radius: number
+          rating: number
+          images: string[]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          store_name: string
+          description: string
+          address: string
+          delivery_radius: number
+          rating?: number
+          images: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          store_name?: string
+          description?: string
+          address?: string
+          delivery_radius?: number
+          rating?: number
+          images?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      categories: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          image_url: string | null
+          gradient: string
+          slug: string
+          display_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          image_url?: string | null
+          gradient: string
+          slug: string
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          image_url?: string | null
+          gradient?: string
+          slug?: string
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          message: string;
+          type: NotificationType;
+          read: boolean;
+          action_url: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title: string;
+          message: string;
+          type: NotificationType;
+          read?: boolean;
+          action_url?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          title?: string;
+          message?: string;
+          type?: NotificationType;
+          read?: boolean;
+          action_url?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
       }
     }
     Views: {

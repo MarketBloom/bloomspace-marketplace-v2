@@ -1,6 +1,6 @@
 export interface Coordinates {
-  latitude: number;
-  longitude: number;
+  lat: number;
+  lng: number;
 }
 
 export interface StructuredAddress {
@@ -28,30 +28,43 @@ export interface Address {
   state: string;
   postcode: string;
   country: string;
+  coordinates?: Coordinates;
+}
+
+export interface BusinessDetails {
+  name: string;
+  website: string;
+  phone: string;
+  openingHours: string[];
+  photos: Array<{
+    url: string;
+    height: number;
+    width: number;
+  }>;
+}
+
+export interface AddressComponents {
+  streetNumber?: string;
+  route?: string;
+  locality?: string;
+  area?: string;
+  state?: string;
+  country?: string;
+  postalCode?: string;
 }
 
 export interface AddressWithCoordinates {
   placeId: string;
   description: string;
   formattedAddress: string;
-  coordinates: {
-    lat: number;
-    lng: number;
-  };
-  addressComponents: {
-    streetNumber?: string;
-    route?: string;
-    locality?: string;
-    area?: string;
-    state?: string;
-    country?: string;
-    postalCode?: string;
-  };
+  coordinates: Coordinates;
+  addressComponents: AddressComponents;
+  businessDetails?: BusinessDetails;
 }
 
 export interface AddressValidation {
-  isValid: boolean;
-  errors: string[];
+  success: boolean;
+  error?: string;
 }
 
 // Helper to parse POINT(lng lat) format from PostGIS
@@ -64,8 +77,8 @@ export function parsePostgisPoint(point: string | null): Coordinates | null {
     if (!matches) return null;
     
     return {
-      longitude: parseFloat(matches[1]),
-      latitude: parseFloat(matches[2])
+      lng: parseFloat(matches[1]),
+      lat: parseFloat(matches[2])
     };
   } catch (error) {
     console.error('Failed to parse PostGIS point:', error);
@@ -76,11 +89,11 @@ export function parsePostgisPoint(point: string | null): Coordinates | null {
 // Helper to format coordinates as PostGIS point
 export function formatPostgisPoint(coordinates: Coordinates | null): string | null {
   if (!coordinates) return null;
-  return `POINT(${coordinates.longitude} ${coordinates.latitude})`;
+  return `POINT(${coordinates.lng} ${coordinates.lat})`;
 }
 
 // Helper to format address components into a single line
-export function formatAddressLine(address: Partial<StructuredAddress>): string {
+export function formatAddress(address: Partial<Address>): string {
   const parts = [];
   
   if (address.unit_number) {
@@ -192,5 +205,36 @@ export interface AddressInput {
   coordinates: {
     lat: number;
     lng: number;
+  };
+}
+
+// Helper to convert AddressWithCoordinates to Address
+export function convertToAddress(addressWithCoords: AddressWithCoordinates): Address {
+  return {
+    street_number: addressWithCoords.addressComponents.streetNumber || '',
+    street_name: addressWithCoords.addressComponents.route || '',
+    suburb: addressWithCoords.addressComponents.locality || '',
+    state: addressWithCoords.addressComponents.state || '',
+    postcode: addressWithCoords.addressComponents.postalCode || '',
+    country: addressWithCoords.addressComponents.country || 'Australia',
+    coordinates: addressWithCoords.coordinates
+  };
+}
+
+// Helper to convert Address to AddressWithCoordinates
+export function convertToAddressWithCoordinates(address: Address): AddressWithCoordinates {
+  return {
+    placeId: '',
+    description: formatAddress(address),
+    formattedAddress: formatAddress(address),
+    coordinates: address.coordinates || { lat: 0, lng: 0 },
+    addressComponents: {
+      streetNumber: address.street_number,
+      route: address.street_name,
+      locality: address.suburb,
+      state: address.state,
+      postalCode: address.postcode,
+      country: address.country
+    }
   };
 }

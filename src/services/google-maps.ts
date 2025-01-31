@@ -28,83 +28,109 @@ export interface AddressComponent {
 class GoogleMapsService {
   private geocoder: google.maps.Geocoder | null = null;
   private placesService: google.maps.places.PlacesService | null = null;
+  private autocompleteService: google.maps.places.AutocompleteService | null = null;
   private loader: Loader | null = null;
   private isInitialized = false;
+  private initializationPromise: Promise<void> | null = null;
+  private mapDiv: HTMLDivElement | null = null;
 
   constructor() {
-    this.initializeGoogleMaps();
+    // Start loading the script immediately but don't wait for it
+    this.initializeGoogleMaps().catch(console.error);
   }
 
   private async initializeGoogleMaps() {
     if (this.isInitialized) return;
 
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-    if (!apiKey) {
-      console.error('Google Maps API key not found in environment variables');
-      return;
+    // If already initializing, return the existing promise
+    if (this.initializationPromise) {
+      return this.initializationPromise;
     }
 
-    this.loader = new Loader({
-      apiKey,
-      version: 'weekly',
-      libraries: ['places', 'geometry'],
-      region: 'AU',
-      language: 'en-AU'
-    });
+    this.initializationPromise = (async () => {
+      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+      if (!apiKey) {
+        throw new Error('Google Maps API key not found in environment variables');
+      }
 
-    try {
-      await this.loader.load();
-      this.geocoder = new google.maps.Geocoder();
-      
-      // Create a map div that stays in the DOM
-      const mapDiv = document.createElement('div');
-      mapDiv.style.display = 'none';
-      document.body.appendChild(mapDiv);
-      
-      // Initialize a map (required for PlacesService)
-      const map = new google.maps.Map(mapDiv, {
-        center: { lat: -25.2744, lng: 133.7751 }, // Center of Australia
-        zoom: 4
-      });
-      
-      this.placesService = new google.maps.places.PlacesService(map);
-      this.isInitialized = true;
-    } catch (error) {
-      console.error('Failed to load Google Maps:', error);
-      this.isInitialized = false;
-      throw error;
-    }
+      if (!this.loader) {
+        this.loader = new Loader({
+          apiKey,
+          version: 'weekly',
+          libraries: ['places', 'geometry'],
+          region: 'AU',
+          language: 'en-AU'
+        });
+      }
+
+      try {
+        await this.loader.load();
+        
+        // Initialize services
+        this.geocoder = new google.maps.Geocoder();
+        this.autocompleteService = new google.maps.places.AutocompleteService();
+        
+        // Create a map div that stays in the DOM if it doesn't exist
+        if (!this.mapDiv) {
+          this.mapDiv = document.createElement('div');
+          this.mapDiv.style.display = 'none';
+          document.body.appendChild(this.mapDiv);
+          
+          // Initialize a map (required for PlacesService)
+          const map = new google.maps.Map(this.mapDiv, {
+            center: { lat: -25.2744, lng: 133.7751 }, // Center of Australia
+            zoom: 4
+          });
+          
+          this.placesService = new google.maps.places.PlacesService(map);
+        }
+        
+        this.isInitialized = true;
+      } catch (error) {
+        this.isInitialized = false;
+        this.initializationPromise = null;
+        throw error;
+      }
+    })();
+
+    return this.initializationPromise;
   }
 
-  private async ensureInitialized() {
+  async ensureInitialized() {
     if (!this.isInitialized) {
       await this.initializeGoogleMaps();
     }
   }
 
-  async searchAddress(query: string): Promise<google.maps.places.AutocompletePrediction[]> {
+  async searchAddress(
+    query: string,
+    mode: 'address' | 'business' = 'address'
+  ): Promise<google.maps.places.AutocompletePrediction[]> {
+    if (!query || query.length < 3) {
+      return [];
+    }
+
     await this.ensureInitialized();
     
-    if (!this.placesService) {
+    if (!this.autocompleteService) {
       throw new Error('Google Places service not initialized');
     }
 
     try {
-      // Use the new Places API
       const request = {
         input: query,
         componentRestrictions: { country: 'au' },
-        types: ['address'],
-        fields: ['formatted_address', 'geometry', 'place_id']
+        types: mode === 'business' ? ['establishment'] : ['geocode'],
       };
 
       return new Promise((resolve, reject) => {
-        const service = new google.maps.places.AutocompleteService();
-        service.getPlacePredictions(
+        this.autocompleteService!.getPlacePredictions(
           request,
           (predictions, status) => {
             if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
               resolve(predictions);
+            } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+              resolve([]);
             } else {
               reject(new Error('Failed to get place predictions'));
             }
@@ -127,46 +153,46 @@ class GoogleMapsService {
     try {
       const request = {
         placeId: placeId,
-        fields: ['formatted_address', 'geometry', 'address_components']
+        fields: ['formatted_address', 'geometry', 'address_components', 'name', 'website', 'formatted_phone_number', 'opening_hours', 'photos']
       };
 
       return new Promise((resolve, reject) => {
         this.placesService!.getDetails(request, (place, status) => {
           if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-            const address: Partial<AddressWithCoordinates> = {
-              formatted_address: place.formatted_address,
-              coordinates: {
-                latitude: place.geometry?.location?.lat() || 0,
-                longitude: place.geometry?.location?.lng() || 0
-              }
+            const coordinates = {
+              lat: place.geometry?.location?.lat() || 0,
+              lng: place.geometry?.location?.lng() || 0
             };
 
-            // Parse address components
-            place.address_components?.forEach(component => {
-              const types = component.types;
+            const addressComponents = place.address_components || [];
+            const address: AddressWithCoordinates = {
+              placeId: place.place_id || '',
+              description: place.name || place.formatted_address || '',
+              formattedAddress: place.formatted_address || '',
+              coordinates,
+              addressComponents: {
+                streetNumber: addressComponents.find(c => c.types.includes('street_number'))?.long_name,
+                route: addressComponents.find(c => c.types.includes('route'))?.long_name,
+                locality: addressComponents.find(c => c.types.includes('locality'))?.long_name,
+                area: addressComponents.find(c => c.types.includes('sublocality'))?.long_name,
+                state: addressComponents.find(c => c.types.includes('administrative_area_level_1'))?.short_name,
+                country: 'Australia',
+                postalCode: addressComponents.find(c => c.types.includes('postal_code'))?.long_name
+              },
+              businessDetails: place.name ? {
+                name: place.name,
+                website: place.website || '',
+                phone: place.formatted_phone_number || '',
+                openingHours: place.opening_hours?.weekday_text || [],
+                photos: place.photos?.map(photo => ({
+                  url: photo.getUrl(),
+                  height: photo.height,
+                  width: photo.width
+                })) || []
+              } : undefined
+            };
 
-              if (types.includes('street_number')) {
-                address.street_number = component.long_name;
-              } else if (types.includes('route')) {
-                address.street_name = component.long_name;
-              } else if (types.includes('subpremise')) {
-                address.unit_number = component.long_name;
-              } else if (types.includes('locality') || types.includes('sublocality')) {
-                address.suburb = component.long_name;
-              } else if (types.includes('administrative_area_level_1')) {
-                address.state = component.short_name;
-              } else if (types.includes('postal_code')) {
-                address.postcode = component.long_name;
-              } else if (types.includes('country')) {
-                address.country = component.long_name;
-              }
-            });
-
-            if (!address.country) {
-              address.country = 'Australia';
-            }
-
-            resolve(address as AddressWithCoordinates);
+            resolve(address);
           } else {
             reject(new Error('Failed to get place details'));
           }

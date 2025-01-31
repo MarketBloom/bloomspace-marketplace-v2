@@ -1,4 +1,15 @@
 import { supabase } from './supabase/client';
+import { toast } from '../hooks/use-toast';
+
+export type NotificationType = 'order' | 'message' | 'system' | 'alert' | 'payment';
+
+interface CreateNotificationParams {
+  userId: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  actionUrl?: string;
+}
 
 export async function createNotification({
   userId,
@@ -6,13 +17,7 @@ export async function createNotification({
   message,
   type,
   actionUrl
-}: {
-  userId: string;
-  title: string;
-  message: string;
-  type: 'order' | 'message' | 'system' | 'alert';
-  actionUrl?: string;
-}) {
+}: CreateNotificationParams) {
   try {
     const { error } = await supabase
       .from('notifications')
@@ -26,14 +31,18 @@ export async function createNotification({
       });
 
     if (error) throw error;
+
+    // Show toast notification
+    toast.default(title, message);
   } catch (error) {
     console.error('Error creating notification:', error);
     throw error;
   }
 }
 
-// Utility functions for common notifications
+// Notification Service with predefined notification types
 export const NotificationService = {
+  // Order related notifications
   async newOrder(floristId: string, orderId: string, customerName: string) {
     await createNotification({
       userId: floristId,
@@ -54,6 +63,17 @@ export const NotificationService = {
     });
   },
 
+  async orderDelivered(customerId: string, orderId: string) {
+    await createNotification({
+      userId: customerId,
+      title: 'Order Delivered',
+      message: `Your order #${orderId} has been delivered. Enjoy your flowers!`,
+      type: 'order',
+      actionUrl: `/orders/${orderId}`
+    });
+  },
+
+  // Message related notifications
   async newMessage(userId: string, senderName: string, orderId: string) {
     await createNotification({
       userId,
@@ -64,6 +84,7 @@ export const NotificationService = {
     });
   },
 
+  // Delivery related notifications
   async deliveryReminder(floristId: string, orderId: string, deliveryTime: string) {
     await createNotification({
       userId: floristId,
@@ -71,6 +92,57 @@ export const NotificationService = {
       message: `Reminder: Order #${orderId} delivery scheduled for ${deliveryTime}`,
       type: 'alert',
       actionUrl: `/dashboard/orders/${orderId}`
+    });
+  },
+
+  async deliveryDelayed(customerId: string, orderId: string, newTime: string) {
+    await createNotification({
+      userId: customerId,
+      title: 'Delivery Delayed',
+      message: `Your order #${orderId} delivery has been rescheduled to ${newTime}`,
+      type: 'alert',
+      actionUrl: `/orders/${orderId}`
+    });
+  },
+
+  // Payment related notifications
+  async paymentSuccess(userId: string, orderId: string, amount: number) {
+    await createNotification({
+      userId,
+      title: 'Payment Successful',
+      message: `Payment of $${amount} for order #${orderId} was successful`,
+      type: 'payment',
+      actionUrl: `/orders/${orderId}`
+    });
+  },
+
+  async paymentFailed(userId: string, orderId: string) {
+    await createNotification({
+      userId,
+      title: 'Payment Failed',
+      message: `Payment for order #${orderId} failed. Please update your payment method`,
+      type: 'payment',
+      actionUrl: `/orders/${orderId}/payment`
+    });
+  },
+
+  // System notifications
+  async systemMaintenance(userId: string, startTime: string, duration: string) {
+    await createNotification({
+      userId,
+      title: 'Scheduled Maintenance',
+      message: `System maintenance scheduled for ${startTime} (Duration: ${duration})`,
+      type: 'system'
+    });
+  },
+
+  async accountUpdate(userId: string, updateType: string) {
+    await createNotification({
+      userId,
+      title: 'Account Updated',
+      message: `Your account ${updateType} has been updated successfully`,
+      type: 'system',
+      actionUrl: '/account/settings'
     });
   }
 }; 

@@ -1,6 +1,6 @@
 import { Heart, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice } from "@/utils/format";
 
 interface ProductHeaderProps {
   title: string;

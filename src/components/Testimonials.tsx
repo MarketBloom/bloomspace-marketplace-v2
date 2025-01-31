@@ -1,78 +1,78 @@
-import { StarIcon } from "@heroicons/react/24/solid";
+import { Star } from 'lucide-react';
 
-const testimonials = [
+const TESTIMONIALS = [
   {
-    quote: "The flowers were absolutely stunning and arrived right on time. The local florist really understood what I was looking for!",
-    author: "Sarah Johnson",
+    id: 1,
+    name: "Sarah Johnson",
+    image: "/images/testimonials/testimonial-1.jpg",
     role: "Happy Customer",
-    avatar: "/images/avatars/sarah.jpg",
+    content: "The flowers were absolutely stunning and arrived right on time. The florist even called to confirm the delivery details. Exceptional service!",
+    rating: 5
   },
   {
-    quote: "I've been using this service for all my special occasions. The quality and creativity of the arrangements never disappoint.",
-    author: "Michael Chen",
-    role: "Regular Client",
-    avatar: "/images/avatars/michael.jpg",
+    id: 2,
+    name: "Michael Chen",
+    image: "/images/testimonials/testimonial-2.jpg",
+    role: "Regular Customer",
+    content: "I've been using BloomSpace for all my flower deliveries. The quality is consistently excellent, and the local florists are true artists.",
+    rating: 5
   },
   {
-    quote: "As an event planner, I need reliable florists. This platform connects me with the best local talent every time.",
-    author: "Emily Davis",
+    id: 3,
+    name: "Emma Wilson",
+    image: "/images/testimonials/testimonial-3.jpg",
     role: "Event Planner",
-    avatar: "/images/avatars/emily.jpg",
-  },
+    content: "As an event planner, I need reliable florists. BloomSpace has never disappointed. Their network of local florists is outstanding.",
+    rating: 5
+  }
 ];
 
 export function Testimonials() {
   return (
-    <section className="py-16 px-4 relative bg-gradient-to-b from-[#F2FCE2] to-[#FDE1D3]">
-      {/* Noise texture overlay */}
-      <div 
-        className="absolute inset-0 pointer-events-none opacity-15"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E")`
-        }}
-      />
-      
-      <div className="max-w-screen-2xl mx-auto relative z-0">
-        <h2 className="text-4xl font-semibold text-center mb-2 tracking-normal leading-tight">
-          What Our Customers Say
-        </h2>
-        <p className="text-lg text-gray-600 text-center mb-12 leading-relaxed max-w-3xl mx-auto">
-          Real reviews from happy customers who found their perfect florists through our platform
-        </p>
+    <section className="py-20 bg-[#E8E3DD]">
+      <div className="max-w-[1400px] mx-auto px-6">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl font-bold text-[#4A4F41] mb-4">
+            What Our Customers Say
+          </h2>
+          <p className="text-lg text-[#4A4F41]/70 max-w-2xl mx-auto">
+            Read about experiences from our happy customers across Australia
+          </p>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
-          {testimonials.map((testimonial) => (
-            <div
-              key={testimonial.author}
-              className="group bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-black/5 hover:border-black/10 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {TESTIMONIALS.map((testimonial) => (
+            <div 
+              key={testimonial.id}
+              className="bg-[#EED2D8] rounded-xl p-8"
             >
-              <div className="flex gap-1 mb-4 transition-transform duration-300 group-hover:scale-110">
-                {[...Array(5)].map((_, i) => (
-                  <StarIcon
+              {/* Rating */}
+              <div className="flex gap-1 mb-6">
+                {[...Array(testimonial.rating)].map((_, i) => (
+                  <Star 
                     key={i}
-                    className="h-5 w-5 text-[#D73459]"
+                    className="w-5 h-5 fill-[#4A4F41] text-[#4A4F41]"
                   />
                 ))}
               </div>
-              
-              <blockquote className="text-gray-700 mb-6 leading-relaxed">
-                "{testimonial.quote}"
+
+              {/* Content */}
+              <blockquote className="text-[#4A4F41]/80 mb-6">
+                "{testimonial.content}"
               </blockquote>
 
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-[#D73459] via-[#eed2d8] to-[#D73459] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <img
-                    src={testimonial.avatar}
-                    alt={testimonial.author}
-                    className="h-10 w-10 rounded-full object-cover relative z-10 ring-2 ring-white"
-                  />
-                </div>
+              {/* Author */}
+              <div className="flex items-center gap-4">
+                <img 
+                  src={testimonial.image}
+                  alt={testimonial.name}
+                  className="w-12 h-12 rounded-full object-cover"
+                />
                 <div>
-                  <div className="font-medium tracking-wide text-[#1D1D1F]">
-                    {testimonial.author}
+                  <div className="font-semibold text-[#4A4F41]">
+                    {testimonial.name}
                   </div>
-                  <div className="text-sm text-gray-600 leading-relaxed">
+                  <div className="text-sm text-[#4A4F41]/70">
                     {testimonial.role}
                   </div>
                 </div>

@@ -1,171 +1,204 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useDebounce } from './useDebounce';
-import { useToast } from '../components/ui/use-toast';
+import { useToast } from './use-toast';
 import { googleMapsService } from '../services/google-maps';
 import type { AddressWithCoordinates } from '../types/address';
+
+const AUSTRALIAN_BOUNDS = {
+  north: -9.142176,
+  south: -44.640507,
+  east: 153.638669,
+  west: 112.911309,
+};
 
 interface UseGooglePlacesProps {
   initialValue?: string;
   onAddressSelect?: (address: AddressWithCoordinates) => void;
   onCoordsChange?: (coords: [number, number]) => void;
   onPlaceSelect?: (place: google.maps.places.PlaceResult) => void;
+  onError?: (error: Error) => void;
+  mode?: 'address' | 'business';
 }
+
+const convertGoogleCoordsToInternal = (location: google.maps.LatLng) => ({
+  lat: location.lat(),
+  lng: location.lng()
+});
 
 export function useGooglePlaces({
   initialValue = '',
   onAddressSelect,
   onCoordsChange,
-  onPlaceSelect
+  onPlaceSelect,
+  onError,
+  mode = 'address'
 }: UseGooglePlacesProps) {
   const [inputValue, setInputValue] = useState(initialValue);
   const [isLoading, setIsLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([]);
-  const debouncedValue = useDebounce(inputValue, 300);
+  const [error, setError] = useState<Error | null>(null);
   const { toast } = useToast();
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
-  const apiLoadedRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const isSelectingRef = useRef(false);
 
-  // Memoize the showError function
   const showError = useCallback((message: string) => {
+    const error = new Error(message);
+    setError(error);
+    if (onError) {
+      onError(error);
+    }
     toast({
       title: "Error",
       description: message,
       variant: "destructive"
     });
-  }, [toast]);
+  }, [toast, onError]);
 
-  const waitForGoogleMapsApi = useCallback(async (): Promise<boolean> => {
-    if (window.google?.maps?.places) {
-      return true;
+  const handlePlaceSelect = useCallback(() => {
+    if (!autocompleteRef.current) return;
+
+    isSelectingRef.current = true;
+    const place = autocompleteRef.current.getPlace();
+    
+    if (!place.geometry || !place.address_components) {
+      showError('No details available for this place');
+      isSelectingRef.current = false;
+      return;
     }
 
-    // Wait for up to 5 seconds for the API to load
-    for (let i = 0; i < 10; i++) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      if (window.google?.maps?.places) {
-        return true;
-      }
+    const coordinates = convertGoogleCoordsToInternal(place.geometry.location);
+    
+    const address: AddressWithCoordinates = {
+      placeId: place.place_id || '',
+      description: mode === 'business' ? place.name || '' : place.formatted_address || '',
+      formattedAddress: place.formatted_address || '',
+      coordinates,
+      addressComponents: {
+        streetNumber: place.address_components.find(c => c.types.includes('street_number'))?.long_name,
+        route: place.address_components.find(c => c.types.includes('route'))?.long_name,
+        locality: place.address_components.find(c => c.types.includes('locality'))?.long_name,
+        area: place.address_components.find(c => c.types.includes('sublocality'))?.long_name,
+        state: place.address_components.find(c => c.types.includes('administrative_area_level_1'))?.short_name,
+        country: 'Australia',
+        postalCode: place.address_components.find(c => c.types.includes('postal_code'))?.long_name
+      },
+      businessDetails: mode === 'business' && place.name ? {
+        name: place.name,
+        website: place.website || '',
+        phone: place.formatted_phone_number || '',
+        openingHours: place.opening_hours?.weekday_text || [],
+        photos: place.photos?.map(photo => ({
+          url: photo.getUrl(),
+          height: photo.height,
+          width: photo.width
+        })) || []
+      } : undefined
+    };
+
+    if (onAddressSelect) {
+      onAddressSelect(address);
     }
-    return false;
-  }, []);
+
+    if (onCoordsChange) {
+      onCoordsChange([coordinates.lat, coordinates.lng]);
+    }
+
+    if (onPlaceSelect) {
+      onPlaceSelect(place);
+    }
+
+    // Update input value with formatted address
+    const formattedAddress = place.formatted_address || '';
+    setInputValue(formattedAddress);
+    
+    // Ensure the input value is updated
+    if (inputRef.current) {
+      inputRef.current.value = formattedAddress;
+    }
+
+    // Reset selecting state after a short delay to allow React state to update
+    setTimeout(() => {
+      isSelectingRef.current = false;
+    }, 100);
+  }, [mode, onAddressSelect, onCoordsChange, onPlaceSelect, showError]);
 
   const initAutocomplete = useCallback(async (input: HTMLInputElement) => {
     try {
-      setIsLoading(true);
+      if (!input) return;
       
-      // Wait for Google Maps API to load
-      const apiLoaded = await waitForGoogleMapsApi();
-      if (!apiLoaded) {
-        console.warn('Google Maps Places API failed to load after timeout');
+      inputRef.current = input;
+      
+      // If we already have an autocomplete instance for this input, don't create another one
+      if (autocompleteRef.current) {
         return;
       }
       
-      apiLoadedRef.current = true;
+      setIsLoading(true);
+      setError(null);
+
+      // Ensure Google Maps is initialized
+      await googleMapsService.ensureInitialized();
+      
+      const bounds = new google.maps.LatLngBounds(
+        { lat: AUSTRALIAN_BOUNDS.south, lng: AUSTRALIAN_BOUNDS.west },
+        { lat: AUSTRALIAN_BOUNDS.north, lng: AUSTRALIAN_BOUNDS.east }
+      );
       
       const autocomplete = new google.maps.places.Autocomplete(input, {
-        types: ['geocode'],
+        types: mode === 'business' ? ['establishment'] : ['geocode'],
         componentRestrictions: { country: 'au' },
-        fields: ['address_components', 'formatted_address', 'geometry']
+        bounds,
+        fields: [
+          'address_components',
+          'formatted_address',
+          'geometry',
+          'place_id',
+          'name'
+        ]
       });
 
-      autocomplete.addListener('place_changed', () => {
-        const place = autocomplete.getPlace();
-        
-        if (!place.geometry || !place.address_components) {
-          showError('No details available for this place');
-          return;
-        }
-
-        const addressComponents = place.address_components;
-        const address: AddressWithCoordinates = {
-          street_number: addressComponents.find(c => c.types.includes('street_number'))?.long_name || '',
-          street_name: addressComponents.find(c => c.types.includes('route'))?.long_name || '',
-          suburb: addressComponents.find(c => c.types.includes('locality'))?.long_name || '',
-          state: addressComponents.find(c => c.types.includes('administrative_area_level_1'))?.short_name || '',
-          postcode: addressComponents.find(c => c.types.includes('postal_code'))?.long_name || '',
-          country: 'Australia',
-          coordinates: {
-            latitude: place.geometry.location.lat(),
-            longitude: place.geometry.location.lng()
-          },
-          formatted_address: place.formatted_address || ''
-        };
-
-        if (onAddressSelect) {
-          onAddressSelect(address);
-        }
-      });
+      // Add place_changed event listener
+      autocomplete.addListener('place_changed', handlePlaceSelect);
 
       autocompleteRef.current = autocomplete;
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to initialize address search';
       console.error('Error initializing Google Places:', error);
-      showError('Failed to initialize address search');
+      showError(errorMessage);
     } finally {
       setIsLoading(false);
     }
-  }, [onAddressSelect, showError, waitForGoogleMapsApi]);
+  }, [mode, handlePlaceSelect, showError]);
 
   const clearAutocomplete = useCallback(() => {
     if (autocompleteRef.current) {
       google.maps.event.clearInstanceListeners(autocompleteRef.current);
       autocompleteRef.current = null;
     }
+    inputRef.current = null;
   }, []);
 
-  useEffect(() => {
-    const fetchSuggestions = async () => {
-      if (!debouncedValue || debouncedValue.length < 3) {
-        setSuggestions([]);
-        return;
+  // Handle manual input changes
+  const handleInputChange = useCallback((value: string) => {
+    if (!isSelectingRef.current) {
+      setInputValue(value);
+      if (inputRef.current) {
+        inputRef.current.value = value;
       }
-
-      setIsLoading(true);
-      try {
-        const predictions = await googleMapsService.searchAddress(debouncedValue);
-        setSuggestions(predictions || []);
-      } catch (error) {
-        console.error('Error fetching suggestions:', error);
-        // Only show error toast for actual errors, not for initialization
-        if (error.message !== 'Google Places service not initialized') {
-          showError("Failed to fetch location suggestions. Please try again.");
-        }
-        setSuggestions([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    // Debounce the API calls
-    const timeoutId = setTimeout(fetchSuggestions, 300);
-    return () => clearTimeout(timeoutId);
-  }, [debouncedValue, showError]);
-
-  const handleSuggestionSelect = async (suggestion: google.maps.places.AutocompletePrediction) => {
-    try {
-      const address = await googleMapsService.getPlaceDetails(suggestion.place_id);
-      setInputValue(suggestion.description);
-      
-      if (onAddressSelect) {
-        onAddressSelect(address);
-      }
-
-      if (onCoordsChange && address.coordinates) {
-        onCoordsChange([address.coordinates.latitude, address.coordinates.longitude]);
-      }
-
-      setSuggestions([]);
-    } catch (error) {
-      console.error('Error getting place details:', error);
-      showError("Failed to get location details. Please try again.");
     }
-  };
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      clearAutocomplete();
+    };
+  }, [clearAutocomplete]);
 
   return {
     inputValue,
-    setInputValue,
+    setInputValue: handleInputChange,
     isLoading,
-    suggestions,
-    handleSuggestionSelect,
+    error,
     initAutocomplete,
     clearAutocomplete
   };

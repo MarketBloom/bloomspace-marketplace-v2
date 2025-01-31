@@ -1,5 +1,5 @@
 import { ShoppingBag, Heart, MapPin, Clock } from "lucide-react";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice } from "@/utils/format";
 
 interface DashboardStatsProps {
   totalOrders: number;

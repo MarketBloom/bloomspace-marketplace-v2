@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice } from "@/utils/format";
 
 interface CartSummaryProps {
   subtotal: number;

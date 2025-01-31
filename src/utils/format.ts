@@ -1,3 +1,5 @@
+import { format } from "date-fns";
+
 /**
  * Format a number as currency in AUD
  * @param amount - The amount to format
@@ -21,13 +23,8 @@ export function formatCurrency(amount: number | null | undefined): string {
  * @param date - Date to format
  * @returns Formatted date string
  */
-export function formatDate(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return new Intl.DateTimeFormat('en-AU', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(d);
+export function formatDate(date: string | Date, formatString: string = 'PPp'): string {
+  return format(new Date(date), formatString);
 }
 
 /**
@@ -65,11 +62,9 @@ export function formatPhoneNumber(phone: string): string {
  * @param km - Distance in kilometers
  * @returns Formatted distance string
  */
-export function formatDistance(km: number): string {
-  if (km < 1) {
-    return `${Math.round(km * 1000)}m`;
-  }
-  return `${km.toFixed(1)}km`;
+export function formatDistance(meters: number): string {
+  const miles = meters * 0.000621371;
+  return `${miles.toFixed(1)} miles`;
 }
 
 /**
@@ -118,4 +113,15 @@ export function formatAddressLine({
   }
 
   return parts.join(', ');
+}
+
+export function formatPrice(price: number): string {
+  return new Intl.NumberFormat('en-AU', {
+    style: 'currency',
+    currency: 'AUD',
+  }).format(price);
+}
+
+export function formatAddress(parts: string[]): string {
+  return parts.join(", ");
 }

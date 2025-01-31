@@ -1,86 +1,83 @@
-import { useNavigate } from "react-router-dom";
-import { formatPrice } from "@/lib/utils";
+import { Link } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
-interface Product {
-  id: string;
-  title: string;
-  price: number;
-  sale_price?: number | null;
-  images: string[];
-  stock_status?: 'in_stock' | 'low_stock' | 'out_of_stock';
-  florist: {
+interface ProductCardProps {
+  product: {
     id: string;
-    store_name: string;
+    title: string;
+    price: number;
+    sale_price?: number | null;
+    images: string[];
+    stock_status?: 'in_stock' | 'low_stock' | 'out_of_stock';
+    florist: {
+      id: string;
+      store_name: string;
+    };
   };
+  className?: string;
 }
 
-export function ProductCard({ product }: { product: Product }) {
-  const navigate = useNavigate();
-
+export function ProductCard({ product, className }: ProductCardProps) {
   return (
-    <div 
-      className="group relative bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer"
-      onClick={() => navigate(`/product/${product.id}`)}
+    <Link 
+      to={`/product/${product.id}`}
+      className={cn(
+        "block aspect-[4/5] w-full relative group",
+        className
+      )}
     >
-      <div className="aspect-square overflow-hidden rounded-t-2xl">
-        <img
-          src={product.images[0]}
-          alt={product.title}
-          className="h-full w-full object-cover object-center transform group-hover:scale-105 transition-transform duration-300"
-        />
-        {product.sale_price && (
-          <div className="absolute top-3 left-3">
-            <span className="inline-flex items-center rounded-full bg-pink-100 px-3 py-1 text-sm font-medium text-pink-700">
-              Sale
-            </span>
-          </div>
-        )}
-        {product.stock_status === 'out_of_stock' && (
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-            <span className="text-white font-medium px-4 py-2 bg-black/40 rounded-lg">
-              Out of Stock
-            </span>
-          </div>
-        )}
-      </div>
-
-      <div className="p-4">
-        <h3 className="text-base font-medium text-gray-900 line-clamp-1">
-          {product.title}
-        </h3>
-        <p className="mt-1 text-sm text-gray-500">
-          By{" "}
-          <a
-            href={`/florist/${product.florist.id}`}
-            className="hover:text-pink-600 transition-colors font-medium"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {product.florist.store_name}
-          </a>
-        </p>
-        <div className="mt-3">
-          {product.sale_price ? (
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-semibold text-pink-600">
-                {formatPrice(product.sale_price)}
+      <div className="h-full bg-[#EED2D8] border border-[#4A4F41]/10 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg">
+        {/* Image Section */}
+        <div className="h-[70%] md:h-[80%] relative overflow-hidden">
+          <img
+            src={product.images[0]}
+            alt={product.title}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+          
+          {/* Badges */}
+          <div className="absolute top-2 right-2 flex flex-col gap-1">
+            {product.sale_price && (
+              <span className="bg-[#E8E3DD]/90 backdrop-blur-sm text-[#4A4F41] text-[10px] px-2 py-0.5 rounded-full">
+                Sale
               </span>
-              <span className="text-sm text-gray-400 line-through">
-                {formatPrice(product.price)}
+            )}
+            {product.stock_status === 'low_stock' && (
+              <span className="bg-[#E8E3DD]/90 backdrop-blur-sm text-[#4A4F41] text-[10px] px-2 py-0.5 rounded-full">
+                Low Stock
               </span>
-            </div>
-          ) : (
-            <span className="text-lg font-semibold text-gray-900">
-              {formatPrice(product.price)}
-            </span>
-          )}
+            )}
+          </div>
         </div>
-        {product.stock_status === 'low_stock' && (
-          <p className="mt-2 text-sm font-medium text-pink-600 flex items-center">
-            <span className="w-1.5 h-1.5 bg-pink-600 rounded-full mr-1.5" />
-            Low stock
+
+        {/* Info Section */}
+        <div className="h-[30%] md:h-[20%] p-3 md:p-4">
+          <h3 className="text-[11px] md:text-[15px] font-semibold text-[#4A4F41] line-clamp-1">
+            {product.title}
+          </h3>
+          <p className="text-[10px] md:text-[12px] text-[#4A4F41]/70 line-clamp-1">
+            {product.florist.store_name}
           </p>
-        )}
+          <div className="flex items-center justify-between mt-1">
+            <div className="flex items-center gap-1.5">
+              {product.sale_price ? (
+                <>
+                  <span className="text-[10px] md:text-[12px] font-medium text-[#4A4F41]/50 line-through">
+                    ${product.price}
+                  </span>
+                  <span className="text-[10px] md:text-[12px] font-medium text-[#B37B54]">
+                    ${product.sale_price}
+                  </span>
+                </>
+              ) : (
+                <span className="text-[10px] md:text-[12px] font-medium text-[#4A4F41]">
+                  ${product.price}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </Link>
   );
 } 

@@ -10,7 +10,7 @@ export const HowItWorks = () => {
   }
 
   return (
-    <section className="hidden md:block py-12">
+    <section className="hidden md:block py-12 bg-bloom-hemp">
       <div className="container mx-auto px-4">
         <h2 className="text-6xl font-bold text-center mb-4">
           Fresh Flowers, Delivered with Care

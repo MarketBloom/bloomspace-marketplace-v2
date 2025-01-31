@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { getClient } from '@/lib/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice } from '@/utils/format';
 import { OrderStatus } from '@/types/order';
 import { DashboardLayout } from '@/components/florist-dashboard/DashboardLayout';
 

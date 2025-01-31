@@ -1,4 +1,4 @@
-import type { User } from '@supabase/supabase-js';
+import type { User, Session } from '@supabase/supabase-js';
 
 export type UserRole = 'customer' | 'florist' | 'admin';
 

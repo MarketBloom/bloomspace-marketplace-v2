@@ -1,91 +1,93 @@
-import { Hero } from "@/components/Hero";
-import { Categories } from "@/components/Categories";
-import { FeaturedProducts } from "@/components/FeaturedProducts";
-import { HowItWorks } from "@/components/HowItWorks";
-import { TrustSection } from "@/components/TrustSection";
-import { Testimonials } from "@/components/Testimonials";
-import { supabase } from "@/integrations/supabase/client";
-import { ErrorBoundary } from "@/components/ui/error-boundary";
-import { useToast } from "@/hooks/use-toast";
-import { Header } from "@/components/Header";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
-import type { Database } from "@/types/database";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "../integrations/supabase/client";
+import { ErrorBoundary } from "../components/ui/error-boundary";
+import { useToast } from "../hooks/use-toast";
+import { Hero } from "../components/Hero";
+import { HowItWorks } from "../components/HowItWorks";
+import { FeaturedFlorists } from "../components/FeaturedFlorists";
+import { Testimonials } from "../components/Testimonials";
+import { Footer } from "../components/Footer";
+import { useAuth } from "../contexts/AuthContext";
+import { MobileLayout } from "../layouts/MobileLayout";
+import { MobileHero } from "../components/MobileHero";
 
-type Product = Database['public']['Tables']['products']['Row'];
-
-const Index = () => {
+export default function Home() {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
-  const { data: products, isLoading, error } = useQuery({
-    queryKey: ['featuredProducts'],
+  const { data: florists } = useQuery({
+    queryKey: ["featured-florists"],
     queryFn: async () => {
       try {
         const { data, error } = await supabase
-          .from('products')
+          .from("florist_profiles")
           .select(`
             id,
-            title,
-            description,
-            price,
-            images,
-            active,
-            florist_id,
-            created_at,
-            updated_at
+            store_name,
+            about_text,
+            address_details,
+            logo_url,
+            banner_url,
+            delivery_settings
           `)
-          .eq('active', true)
-          .limit(8)
-          .order('created_at', { ascending: false });
+          .eq("store_status", "active")
+          .limit(4);
 
-        if (error) {
-          console.error('Error fetching products:', error);
-          throw error;
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        if (toast.error) {
+          toast.error("Error loading florists", error instanceof Error ? error.message : "An error occurred");
         }
-
-        if (!data) {
-          return [];
-        }
-
-        // Transform the data to handle image paths
-        return data.map((item: Product) => ({
-          ...item,
-          images: item.images?.length > 0 
-            ? item.images.map((img: string) => img.startsWith('http') ? img : `/images/products/${img}`)
-            : ['/images/placeholder.jpg']
-        }));
-      } catch (err) {
-        console.error('Error in products query:', err);
-        throw err;
+        return [];
       }
     },
-    retry: 1
   });
 
-  useEffect(() => {
-    if (error) {
-      console.error('Query error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load featured products. Please try again later.",
-        variant: "destructive"
-      });
+  const handleSearch = async (searchParams: {
+    location: string;
+    date?: Date;
+    budget?: [number, number];
+    deliveryType: "delivery" | "pickup";
+  }) => {
+    // Navigate to search page with parameters
+    const params = new URLSearchParams();
+    params.set("location", searchParams.location);
+    if (searchParams.date) {
+      params.set("date", searchParams.date.toISOString());
     }
-  }, [error, toast]);
+    if (searchParams.budget) {
+      params.set("minPrice", searchParams.budget[0].toString());
+      params.set("maxPrice", searchParams.budget[1].toString());
+    }
+    params.set("deliveryType", searchParams.deliveryType);
+
+    navigate(`/search?${params.toString()}`);
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      <Hero />
-      <Categories />
-      <ErrorBoundary>
-        <FeaturedProducts products={products || []} isLoading={isLoading} />
-      </ErrorBoundary>
-      <HowItWorks />
-      <TrustSection />
-      <Testimonials />
-    </div>
-  );
-};
+    <>
+      {/* Mobile View */}
+      <div className="block md:hidden">
+        <MobileLayout>
+          <MobileHero onSearch={handleSearch} />
+        </MobileLayout>
+      </div>
 
-export default Index;
+      {/* Desktop View */}
+      <div className="hidden md:block">
+        <ErrorBoundary>
+          <main className="bg-[#E8E3DD]">
+            <Hero onSearch={handleSearch} />
+            <HowItWorks />
+            <FeaturedFlorists florists={florists || []} />
+            <Testimonials />
+          </main>
+          <Footer />
+        </ErrorBoundary>
+      </div>
+    </>
+  );
+}

@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice } from "@/utils/format";
 
 interface ProductSize {
   id: string;

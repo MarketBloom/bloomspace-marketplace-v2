@@ -1,65 +1,90 @@
-import { Link } from "react-router-dom";
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '../integrations/supabase/client';
+import { Skeleton } from './ui/skeleton';
 
-const categories = [
-  {
-    title: "Birthday",
-    image: "/images/categories/birthday.jpg",
-    href: "/category/birthday",
-  },
-  {
-    title: "Romance",
-    image: "/images/categories/romance.jpg",
-    href: "/category/romance",
-  },
-  {
-    title: "Premium",
-    image: "/images/categories/premium.jpg",
-    href: "/category/premium",
-  },
-  {
-    title: "Seasonal",
-    image: "/images/categories/seasonal.jpg",
-    href: "/category/seasonal",
-  },
-];
+interface Category {
+  id: string;
+  name: string;
+  description: string;
+  image_url: string;
+  gradient: string;
+  slug: string;
+}
 
 export function Categories() {
-  return (
-    <section className="py-16 px-4 relative">
-      {/* Noise texture overlay */}
-      <div 
-        className="absolute inset-0 pointer-events-none opacity-15"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E")`
-        }}
-      />
-      
-      <div className="max-w-screen-2xl mx-auto relative z-0">
-        <h2 className="text-4xl font-semibold mb-2 tracking-normal leading-tight">
-          Shop by Category
-        </h2>
-        <p className="text-lg text-gray-600 mb-8 leading-relaxed">
-          Explore our curated collection of floral categories
-        </p>
+  const { data: categories, isLoading } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .order('display_order', { ascending: true });
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
-          {categories.map((category) => (
+      if (error) throw error;
+      return data as Category[];
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <section className="py-24 bg-white">
+        <div className="w-full max-w-content mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <Skeleton className="h-12 w-64 mx-auto mb-4" />
+            <Skeleton className="h-6 w-96 mx-auto" />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="relative overflow-hidden rounded-xl shadow-lg bg-white">
+                <div className="aspect-w-4 aspect-h-3">
+                  <Skeleton className="w-full h-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="py-24 bg-white">
+      <div className="w-full max-w-content mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 tracking-tight">
+            Shop by Occasion
+          </h2>
+          <p className="text-lg text-gray-600 leading-relaxed">
+            Find the perfect arrangement for every moment, big or small.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          {categories?.map((category) => (
             <Link
-              key={category.title}
-              to={category.href}
-              className="group relative aspect-square overflow-hidden rounded-lg border border-black/5 hover:border-black/10 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+              key={category.id}
+              to={`/search?category=${category.slug}`}
+              className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 bg-white"
             >
-              <img
-                src={category.image}
-                alt={category.title}
-                className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent opacity-90 transition-opacity duration-300 group-hover:opacity-100" />
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-90 transition-opacity duration-300 bg-gradient-to-r from-[#D73459] via-[#eed2d8] to-[#D73459]" style={{ mixBlendMode: 'overlay' }} />
-              <div className="absolute bottom-4 left-4 z-10">
-                <h3 className="text-2xl font-medium tracking-wide text-white">
-                  {category.title}
-                </h3>
+              <div className="aspect-w-4 aspect-h-3">
+                <img
+                  src={category.image_url}
+                  alt={category.name}
+                  className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className={`absolute inset-0 bg-gradient-to-br ${category.gradient} mix-blend-soft-light opacity-90 group-hover:opacity-95 transition-opacity duration-300`} />
+                <div className="absolute inset-0 flex flex-col justify-end p-8">
+                  <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                    <h3 className="text-2xl font-bold text-white mb-2 tracking-tight">
+                      {category.name}
+                    </h3>
+                    <p className="text-white/90 text-sm transform opacity-0 group-hover:opacity-100 transition-all duration-300 delay-100">
+                      {category.description}
+                    </p>
+                  </div>
+                </div>
               </div>
             </Link>
           ))}
